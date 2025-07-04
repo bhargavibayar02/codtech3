@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DeFi Lending DApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #fff;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 30px;
+      width: 100%;
+      max-width: 420px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+      font-weight: 600;
+    }
+
+    .section {
+      margin-bottom: 24px;
+    }
+
+    .section h3 {
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #ffffff;
+      color: #333;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #f0f0f0;
+    }
+
+    .info, .status {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-top: 10px;
+      white-space: pre-line;
+    }
+
+    .status {
+      text-align: center;
+      font-weight: 600;
+      color: #d4fcdc;
+    }
+  </style>
+</head>
+<body>
+  <div class="glass-card">
+    <h2>💎 DeFi Lending</h2>
+
+    <div class="section">
+      <h3>Deposit</h3>
+      <input type="text" id="depositAmount" placeholder="Amount in ETH" />
+      <button onclick="deposit()">Deposit</button>
+    </div>
+
+    <div class="section">
+      <h3>Borrow</h3>
+      <input type="text" id="borrowAmount" placeholder="Amount in ETH" />
+      <button onclick="borrow()">Borrow</button>
+    </div>
+
+    <div class="section">
+      <h3>Repay</h3>
+      <input type="text" id="repayAmount" placeholder="Amount in ETH" />
+      <button onclick="repay()">Repay</button>
+    </div>
+
+    <div class="section">
+      <h3>Loan Info</h3>
+      <button onclick="getLoanInfo()">Check My Loan</button>
+      <div class="info" id="loanInfo">No loan data yet.</div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script>
+    let web3;
+    let contract;
+    const contractAddress = "0xae76ce61bA88E572a62E609d86788a35ea76Dc51e"; // Replace with your deployed contract address
+
+    const abi = [{
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "deposits",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "loans",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "interestRate",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "startTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "borrower",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "repaid",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [],
+      "name": "deposit",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function",
+      "payable": true
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "borrow",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "repay",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function",
+      "payable": true
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "amount",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "interestRate",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "startTime",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "borrower",
+              "type": "address"
+            },
+            {
+              "internalType": "bool",
+              "name": "repaid",
+              "type": "bool"
+            }
+          ],
+          "internalType": "struct Lending.Loan",
+          "name": "loan",
+          "type": "tuple"
+        }
+      ],
+      "name": "calculateInterest",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "borrower",
+          "type": "address"
+        }
+      ],
+      "name": "getTotalDue",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "principal",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "interest",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "total",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [],
+      "name": "getDynamicInterest",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [],
+      "name": "getContractBalance",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    }];
+
+    window.addEventListener('load', async () => {
+      if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        await ethereum.request({ method: 'eth_requestAccounts' });
+        contract = new web3.eth.Contract(abi, contractAddress);
+      } else {
+        alert("Please install MetaMask");
+      }
+    });
+
+    async function deposit() {
+      const accounts = await web3.eth.getAccounts();
+      const value = web3.utils.toWei(document.getElementById("depositAmount").value, "ether");
+      await contract.methods.deposit().send({ from: accounts[0], value });
+      setStatus("✅ Deposit successful!");
+    }
+
+    async function borrow() {
+      const accounts = await web3.eth.getAccounts();
+      const value = web3.utils.toWei(document.getElementById("borrowAmount").value, "ether");
+      await contract.methods.borrow(value).send({ from: accounts[0] });
+      setStatus("✅ Borrow successful!");
+    }
+
+    async function repay() {
+      const accounts = await web3.eth.getAccounts();
+      const value = web3.utils.toWei(document.getElementById("repayAmount").value, "ether");
+      await contract.methods.repay().send({ from: accounts[0], value });
+      setStatus("✅ Repayment successful!");
+    }
+
+    async function getLoanInfo() {
+      const accounts = await web3.eth.getAccounts();
+      const result = await contract.methods.getTotalDue(accounts[0]).call();
+      const principal = web3.utils.fromWei(result[0], "ether");
+      const interest = web3.utils.fromWei(result[1], "ether");
+      const total = web3.utils.fromWei(result[2], "ether");
+
+      document.getElementById("loanInfo").innerText =
+        `Principal: ${principal} ETH\nInterest: ${interest} ETH\nTotal Due: ${total} ETH`;
+    }
+
+    function setStatus(message) {
+      document.getElementById("status").innerText = message;
+    }
+  </script>
+</body>
+</html>
