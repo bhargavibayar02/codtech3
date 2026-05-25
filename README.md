@@ -1,4 +1,4 @@
-## Task 3: DeFi App
+## DeFi App
 
 ## Requirements:
 - 1.Ganache
